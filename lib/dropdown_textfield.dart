@@ -118,8 +118,14 @@ class DropDownTextField extends StatefulWidget {
     this.dropDownIconProperty,
     this.textFieldDecoration,
     this.dropDownItemCount = 6,
+    this.enableSearch = false,
+    this.searchTextStyle,
     this.searchFocusNode,
     this.textFieldFocusNode,
+    this.searchAutofocus = false,
+    this.searchDecoration,
+    this.searchShowCursor,
+    this.searchKeyboardType,
     this.listSpace = 0,
     this.clearOption = true,
     this.clearIconProperty,
@@ -141,14 +147,8 @@ class DropDownTextField extends StatefulWidget {
         ),
         multiController = controller,
         isMultiSelection = true,
-        enableSearch = false,
         readOnly = true,
-        searchTextStyle = null,
-        searchAutofocus = false,
-        searchKeyboardType = null,
-        searchShowCursor = null,
         singleController = null,
-        searchDecoration = null,
         keyboardType = null,
         // keyboardHeight = 0,
         super(key: key);
@@ -195,7 +195,8 @@ class DropDownTextField extends StatefulWidget {
 
   final FormFieldValidator<String>? validator;
 
-  ///by setting enableSearch=true enable search option in dropdown,as of now this feature enabled only for single selection dropdown
+  ///by setting enableSearch=true enable search option in dropdown, for both
+  ///single and multi selection dropdowns
   final bool enableSearch;
 
   final bool readOnly;
@@ -821,12 +822,14 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
+                        color: Theme.of(context)
+                            .shadowColor
+                            .withValues(alpha: 0.2),
                         blurRadius: 5,
                       ),
                     ],
                   ),
-            child: !widget.isMultiSelection
+              child: !widget.isMultiSelection
                   ? SingleSelection(
                       mainController: _cnt,
                       autoSort: !widget.readOnly,
@@ -885,6 +888,14 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                       dropDownList: _dropDownList,
                       listTextStyle: _listTileTextStyle,
                       listPadding: _listPadding,
+                      enableSearch: widget.enableSearch,
+                      searchHeight: _searchWidgetHeight,
+                      searchTextStyle: widget.searchTextStyle,
+                      searchFocusNode: _searchFocusNode,
+                      searchKeyboardType: widget.searchKeyboardType,
+                      searchShowCursor: widget.searchShowCursor,
+                      searchDecoration: widget.searchDecoration,
+                      clearIconProperty: widget.clearIconProperty,
                       onChanged: (val) {
                         _isExpanded = !_isExpanded;
                         _multiSelectionValue = val;
