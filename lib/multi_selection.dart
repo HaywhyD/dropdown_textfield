@@ -16,7 +16,17 @@ class MultiSelection extends StatefulWidget {
       required this.listTileHeight,
       required this.listPadding,
       this.listTextStyle,
-      this.checkBoxProperty})
+      this.checkBoxProperty,
+      this.enableSearch = false,
+      this.searchHeight = 60,
+      this.searchTextStyle,
+      this.searchFocusNode,
+      this.searchKeyboardType,
+      this.searchShowCursor,
+      this.searchDecoration,
+      this.clearIconProperty,
+      this.onSearchTap,
+      this.onSearchSubmit})
       : super(key: key);
   final List<DropDownValueModel> dropDownList;
   final ValueSetter onChanged;
@@ -30,6 +40,21 @@ class MultiSelection extends StatefulWidget {
   final ListPadding listPadding;
   final CheckBoxProperty? checkBoxProperty;
 
+  ///by setting enableSearch=true enable search option in this multi-select
+  ///dropdown -- selections already made are preserved across searches since
+  ///checked state is tracked against the full [dropDownList], not the
+  ///currently-filtered view.
+  final bool enableSearch;
+  final double searchHeight;
+  final TextStyle? searchTextStyle;
+  final FocusNode? searchFocusNode;
+  final TextInputType? searchKeyboardType;
+  final bool? searchShowCursor;
+  final InputDecoration? searchDecoration;
+  final IconProperty? clearIconProperty;
+  final Function? onSearchTap;
+  final Function? onSearchSubmit;
+
   @override
   _MultiSelectionState createState() => _MultiSelectionState();
 }
@@ -37,23 +62,100 @@ class MultiSelection extends StatefulWidget {
 class _MultiSelectionState extends State<MultiSelection> {
   List<bool> multiSelectionValue = [];
 
+  // Indices into widget.dropDownList/multiSelectionValue that are currently
+  // visible -- kept separate from the selection state itself so filtering
+  // never disturbs which items are checked, even across repeated searches.
+  late List<int> _visibleIndices;
+  late TextEditingController _searchCnt;
+  late FocusNode _searchFocusNode;
+
   @override
   void initState() {
     multiSelectionValue = List.from(widget.list);
+    _visibleIndices = List.generate(widget.dropDownList.length, (i) => i);
+    _searchCnt = TextEditingController();
+    _searchFocusNode = widget.searchFocusNode ?? FocusNode();
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _searchCnt.dispose();
+    if (widget.searchFocusNode == null) _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      if (value.isEmpty) {
+        _visibleIndices = List.generate(widget.dropDownList.length, (i) => i);
+      } else {
+        final query = value.toLowerCase();
+        _visibleIndices = [
+          for (var i = 0; i < widget.dropDownList.length; i++)
+            if (widget.dropDownList[i].name.toLowerCase().contains(query)) i,
+        ];
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (widget.enableSearch)
+          SizedBox(
+            height: widget.searchHeight,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: TextField(
+                style: widget.searchTextStyle,
+                focusNode: _searchFocusNode,
+                showCursor: widget.searchShowCursor,
+                keyboardType: widget.searchKeyboardType,
+                controller: _searchCnt,
+                onTap: () {
+                  if (widget.onSearchTap != null) {
+                    widget.onSearchTap!();
+                  }
+                },
+                decoration: (widget.searchDecoration ?? const InputDecoration())
+                    .copyWith(
+                  hintText:
+                      widget.searchDecoration?.hintText ?? 'Search Here...',
+                  suffixIcon: GestureDetector(
+                    onTap: () {
+                      _searchCnt.clear();
+                      _onSearchChanged("");
+                    },
+                    child: _searchFocusNode.hasFocus
+                        ? InkWell(
+                            child: Icon(
+                              widget.clearIconProperty?.icon ?? Icons.close,
+                              size: widget.clearIconProperty?.size,
+                              color: widget.clearIconProperty?.color,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                onChanged: _onSearchChanged,
+                onSubmitted: (val) {
+                  if (widget.onSearchSubmit != null) {
+                    widget.onSearchSubmit!();
+                  }
+                },
+              ),
+            ),
+          ),
         SizedBox(
           height: widget.height,
           child: Scrollbar(
             child: ListView.builder(
                 padding: EdgeInsets.zero,
-                itemCount: widget.dropDownList.length,
-                itemBuilder: (BuildContext context, int index) {
+                itemCount: _visibleIndices.length,
+                itemBuilder: (BuildContext context, int position) {
+                  final index = _visibleIndices[position];
                   return SizedBox(
                     height: widget.listTileHeight +
                         widget.listPadding.top +
