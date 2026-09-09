@@ -513,12 +513,22 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     // may reference (e.g. MultiSelection's search field, which shares
     // _searchFocusNode) -- Overlay content lives outside this widget's
     // normal disposal order, so without this it can outlive the nodes it
-    // reads, causing a "FocusNode used after being disposed" crash.
-    _entry?.remove();
+    // reads, causing a "FocusNode used after being disposed" crash. Guarded
+    // with the same `mounted` check hideOverlay()'s own cleanup uses --
+    // calling remove() on an entry that's already been removed (e.g. by
+    // hideOverlay()'s reverse-animation callback completing first) throws
+    // "An OverlayEntry should be removed only once".
+    if (_entry != null && _entry!.mounted) {
+      _entry!.remove();
+    }
     _entry = null;
-    _entry2?.remove();
+    if (_entry2 != null && _entry2!.mounted) {
+      _entry2!.remove();
+    }
     _entry2 = null;
-    _barrierOverlay?.remove();
+    if (_barrierOverlay != null && _barrierOverlay!.mounted) {
+      _barrierOverlay!.remove();
+    }
     _barrierOverlay = null;
     if (widget.searchFocusNode == null) _searchFocusNode.dispose();
     if (widget.textFieldFocusNode == null) _textFieldFocusNode.dispose();
