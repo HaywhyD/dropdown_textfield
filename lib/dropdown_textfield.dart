@@ -891,7 +891,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                       enableSearch: widget.enableSearch,
                       searchHeight: _searchWidgetHeight,
                       searchTextStyle: widget.searchTextStyle,
-                      searchFocusNode: _searchFocusNode,
                       searchKeyboardType: widget.searchKeyboardType,
                       searchShowCursor: widget.searchShowCursor,
                       searchDecoration: widget.searchDecoration,

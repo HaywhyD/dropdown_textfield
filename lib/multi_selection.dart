@@ -20,7 +20,6 @@ class MultiSelection extends StatefulWidget {
       this.enableSearch = false,
       this.searchHeight = 60,
       this.searchTextStyle,
-      this.searchFocusNode,
       this.searchKeyboardType,
       this.searchShowCursor,
       this.searchDecoration,
@@ -47,7 +46,6 @@ class MultiSelection extends StatefulWidget {
   final bool enableSearch;
   final double searchHeight;
   final TextStyle? searchTextStyle;
-  final FocusNode? searchFocusNode;
   final TextInputType? searchKeyboardType;
   final bool? searchShowCursor;
   final InputDecoration? searchDecoration;
@@ -74,14 +72,21 @@ class _MultiSelectionState extends State<MultiSelection> {
     multiSelectionValue = List.from(widget.list);
     _visibleIndices = List.generate(widget.dropDownList.length, (i) => i);
     _searchCnt = TextEditingController();
-    _searchFocusNode = widget.searchFocusNode ?? FocusNode();
+    // Owned entirely by this widget rather than accepted from the caller --
+    // this overlay's own lifecycle (created fresh each time the dropdown
+    // opens, torn down each time it closes) doesn't line up with the host
+    // DropDownTextField's longer-lived focus node, and sharing that node
+    // here previously caused "used after disposed" once the host widget
+    // (or its focus node) was torn down while this overlay was still
+    // animating closed.
+    _searchFocusNode = FocusNode();
     super.initState();
   }
 
   @override
   void dispose() {
     _searchCnt.dispose();
-    if (widget.searchFocusNode == null) _searchFocusNode.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
