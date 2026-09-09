@@ -509,6 +509,17 @@ class _DropDownTextFieldState extends State<DropDownTextField>
 
   @override
   void dispose() {
+    // Tear down any still-open overlay before disposing the focus nodes it
+    // may reference (e.g. MultiSelection's search field, which shares
+    // _searchFocusNode) -- Overlay content lives outside this widget's
+    // normal disposal order, so without this it can outlive the nodes it
+    // reads, causing a "FocusNode used after being disposed" crash.
+    _entry?.remove();
+    _entry = null;
+    _entry2?.remove();
+    _entry2 = null;
+    _barrierOverlay?.remove();
+    _barrierOverlay = null;
     if (widget.searchFocusNode == null) _searchFocusNode.dispose();
     if (widget.textFieldFocusNode == null) _textFieldFocusNode.dispose();
     if (_controller.isAnimating) {
