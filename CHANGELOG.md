@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+- Published as `milsat_dropdown_textfield` — Milsat's fork of `dropdown_textfield`
+  (https://github.com/HaywhyD/dropdown_textfield), published under a new name since
+  the original is a separate package on pub.dev. No API changes: all class names are
+  unchanged, so it's a drop-in replacement — just swap the import's package name.
+- Multi-select dropdown now supports search (`enableSearch`, `searchFocusNode`, etc.
+  on `MultiSelectionDropDown`), matching the search already available on single-select.
+
 ## 1.2.0
 - 'WidgetStateProperty' not found - fixed
 
