@@ -102,8 +102,8 @@ class _SingleSelectionState extends State<SingleSelection> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.enableSearch)
-          SizedBox(
-            height: widget.searchHeight,
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: widget.searchHeight),
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: TextField(

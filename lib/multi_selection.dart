@@ -78,6 +78,44 @@ class _MultiSelectionState extends State<MultiSelection> {
     super.initState();
   }
 
+  // Index of the item named "select all" (case-insensitive), if the caller
+  // included one -- treated as a master checkbox rather than a regular item.
+  int? get _selectAllIndex {
+    for (var i = 0; i < widget.dropDownList.length; i++) {
+      if (widget.dropDownList[i].name.trim().toLowerCase() == 'select all') {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  bool _allOthersSelected(int selectAllIndex) {
+    var hasOthers = false;
+    for (var i = 0; i < multiSelectionValue.length; i++) {
+      if (i == selectAllIndex) continue;
+      hasOthers = true;
+      if (!multiSelectionValue[i]) return false;
+    }
+    return hasOthers;
+  }
+
+  void _onCheckboxChanged(int index, bool value) {
+    final selectAllIndex = _selectAllIndex;
+    setState(() {
+      if (selectAllIndex != null && index == selectAllIndex) {
+        for (var i = 0; i < multiSelectionValue.length; i++) {
+          multiSelectionValue[i] = value;
+        }
+      } else {
+        multiSelectionValue[index] = value;
+        if (selectAllIndex != null) {
+          multiSelectionValue[selectAllIndex] =
+              _allOthersSelected(selectAllIndex);
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _searchCnt.dispose();
@@ -104,8 +142,10 @@ class _MultiSelectionState extends State<MultiSelection> {
     return Column(
       children: [
         if (widget.enableSearch)
-          SizedBox(
-            height: widget.searchHeight,
+          ConstrainedBox(
+            // searchHeight is a floor, not a cap -- lets the field grow for
+            // helper/error text or larger custom decorations instead of clipping.
+            constraints: BoxConstraints(minHeight: widget.searchHeight),
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: TextField(
@@ -196,9 +236,7 @@ class _MultiSelectionState extends State<MultiSelection> {
                             value: multiSelectionValue[index],
                             onChanged: (value) {
                               if (value != null) {
-                                setState(() {
-                                  multiSelectionValue[index] = value;
-                                });
+                                _onCheckboxChanged(index, value);
                               }
                             },
                             tristate:

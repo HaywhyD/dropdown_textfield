@@ -102,6 +102,7 @@ class DropDownTextField extends StatefulWidget {
         submitButtonColor = null,
         submitButtonText = null,
         submitButtonTextStyle = null,
+        summaryTextBuilder = null,
         super(key: key);
   const DropDownTextField.multiSelection({
     Key? key,
@@ -138,6 +139,7 @@ class DropDownTextField extends StatefulWidget {
     this.autovalidateMode,
     this.boxDecoration,
     this.boxMargin,
+    this.summaryTextBuilder,
   })  : assert(initialValue == null || controller == null,
             "you cannot add both initialValue and multiController\nset initial value using controller\n\tMultiValueDropDownController(data:initial value)"),
         assert(
@@ -206,6 +208,12 @@ class DropDownTextField extends StatefulWidget {
 
   ///Maximum number of dropdown item to display,default value is 6
   final int dropDownItemCount;
+
+  ///Multi-select only. Overrides the default summary text (the joined item
+  ///names, or "N item selected") shown in the field once items are picked --
+  ///e.g. return 'Selected 34 states' instead of a comma-separated list. Any
+  ///"select all" item is already excluded from the list passed in.
+  final String Function(List<DropDownValueModel> selected)? summaryTextBuilder;
 
   final FocusNode? searchFocusNode;
   final FocusNode? textFieldFocusNode;
@@ -351,13 +359,13 @@ class _DropDownTextFieldState extends State<DropDownTextField>
         clearFun();
       }
     });
-    for (int i = 0; i < widget.dropDownList.length; i++) {
+    _dropDownList = _withSelectAllPrefix(widget.dropDownList);
+    for (int i = 0; i < _dropDownList.length; i++) {
       _multiSelectionValue.add(false);
     }
 
     ///initial value load
     if (widget.initialValue != null) {
-      _dropDownList = List.from(widget.dropDownList);
       if (widget.isMultiSelection) {
         for (int i = 0; i < widget.initialValue.length; i++) {
           var index = _dropDownList.indexWhere((element) =>
@@ -366,14 +374,12 @@ class _DropDownTextFieldState extends State<DropDownTextField>
             _multiSelectionValue[index] = true;
           }
         }
-        int count =
-            _multiSelectionValue.where((element) => element).toList().length;
 
-        _cnt.text = (count == 0
-            ? ""
-            : widget.displayCompleteItem
-                ? (widget.initialValue ?? []).join(",")
-                : "$count item selected");
+        final selected = [
+          for (int i = 0; i < _multiSelectionValue.length; i++)
+            if (_multiSelectionValue[i]) _dropDownList[i]
+        ].where((e) => e.name.trim().toLowerCase() != 'select all').toList();
+        _cnt.text = _multiSummaryText(selected);
       } else {
         var index = _dropDownList.indexWhere(
             (element) => element.name.trim() == widget.initialValue.trim());
@@ -388,6 +394,31 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     super.initState();
   }
 
+  // Builds the multi-select summary text, excluding any "select all" item
+  // and honoring widget.summaryTextBuilder when the caller supplied one.
+  String _multiSummaryText(List<DropDownValueModel> selected) {
+    if (selected.isEmpty) return "";
+    if (widget.summaryTextBuilder != null) {
+      return widget.summaryTextBuilder!(selected);
+    }
+    return widget.displayCompleteItem
+        ? selected.map((e) => e.name).join(",")
+        : "${selected.length} item selected";
+  }
+
+  // Multi-select gets a "Select All" master item for free when the caller
+  // didn't already include one (case-insensitive match by name).
+  List<DropDownValueModel> _withSelectAllPrefix(List<DropDownValueModel> list) {
+    if (!widget.isMultiSelection) return List.from(list);
+    final hasSelectAll =
+        list.any((e) => e.name.trim().toLowerCase() == 'select all');
+    if (hasSelectAll) return List.from(list);
+    return [
+      const DropDownValueModel(name: 'Select All', value: '__select_all__'),
+      ...list,
+    ];
+  }
+
   Size _textWidgetSize(String text, TextStyle style) {
     final TextPainter textPainter = TextPainter(
         text: TextSpan(text: text, style: style),
@@ -399,11 +430,12 @@ class _DropDownTextFieldState extends State<DropDownTextField>
 
   updateFunction({DropDownTextField? oldWidget}) {
     Function eq = const DeepCollectionEquality().equals;
-    _dropDownList = List.from(widget.dropDownList);
+    _dropDownList = _withSelectAllPrefix(widget.dropDownList);
     _listPadding = widget.listPadding ?? ListPadding();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isMultiSelection) {
-        if (oldWidget != null && !eq(oldWidget.dropDownList, _dropDownList)) {
+        if (oldWidget != null &&
+            !eq(oldWidget.dropDownList, widget.dropDownList)) {
           _multiSelectionValue = [];
           _cnt.text = "";
           for (int i = 0; i < _dropDownList.length; i++) {
@@ -449,20 +481,13 @@ class _DropDownTextFieldState extends State<DropDownTextField>
             }
 
             if (oldWidget?.displayCompleteItem != widget.displayCompleteItem) {
-              List<String> names =
-                  (widget.multiController?.dropDownValueList ?? [])
-                      .map((dataModel) => dataModel.name)
-                      .toList();
-
-              int count = _multiSelectionValue
-                  .where((element) => element)
-                  .toList()
-                  .length;
-              _cnt.text = (count == 0
-                  ? ""
-                  : widget.displayCompleteItem
-                      ? names.join(",")
-                      : "$count item selected");
+              final selected = [
+                for (int i = 0; i < _multiSelectionValue.length; i++)
+                  if (_multiSelectionValue[i]) _dropDownList[i]
+              ]
+                  .where((e) => e.name.trim().toLowerCase() != 'select all')
+                  .toList();
+              _cnt.text = _multiSummaryText(selected);
             }
           } else {
             _multiSelectionValue = [];
@@ -921,23 +946,15 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                         _isExpanded = !_isExpanded;
                         _multiSelectionValue = val;
                         List<DropDownValueModel> result = [];
-                        List completeList = [];
                         for (int i = 0; i < _multiSelectionValue.length; i++) {
-                          if (_multiSelectionValue[i]) {
+                          if (_multiSelectionValue[i] &&
+                              _dropDownList[i].name.trim().toLowerCase() !=
+                                  'select all') {
                             result.add(_dropDownList[i]);
-                            completeList.add(_dropDownList[i].name);
                           }
                         }
-                        int count = _multiSelectionValue
-                            .where((element) => element)
-                            .toList()
-                            .length;
 
-                        _cnt.text = (count == 0
-                            ? ""
-                            : widget.displayCompleteItem
-                                ? completeList.join(",")
-                                : "$count item selected");
+                        _cnt.text = _multiSummaryText(result);
                         if (widget.multiController != null) {
                           widget.multiController!
                               .setDropDown(result.isNotEmpty ? result : null);
